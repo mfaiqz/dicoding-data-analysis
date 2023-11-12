@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 import seaborn as sns
 import streamlit as st
 
@@ -10,7 +11,67 @@ st.set_page_config(
     page_title="DICODING-AIR QUALITY DASHBOARD",
     # theme="light"
 )
-df = pd.read_csv("Air-Quality-Final.csv", sep=";", index_col=False)
+dir_path = "./PRSA_Data_20130301-20170228"
+file_names = os.listdir(dir_path)
+df_list = []
+
+for file in file_names:
+    file_df = pd.read_csv(f'{dir_path}/{file}')
+    df_list.append(file_df)
+
+df = pd.concat(df_list, ignore_index=True,)
+values = {
+    "PM2.5": df["PM2.5"].mean(),
+    "PM10": df["PM10"].mean(),
+    "SO2": df["SO2"].mean(),
+    "NO2": df["NO2"].mean(),
+    "CO": df["CO"].mean(),
+    "O3": df["O3"].mean(),
+    "TEMP": df["TEMP"].mean(),
+    "PRES": df["PRES"].mean(),
+    "DEWP": df["DEWP"].mean(),
+    "WSPM": df["WSPM"].mean(),
+    "RAIN": df["RAIN"].mean()
+}
+
+df.fillna(value=values, inplace=True)
+
+
+def Quartile1(dframe, column):
+    Q1 = dframe[column].quantile(0.25)
+    return Q1
+
+
+def Quartile3(dframe, column):
+    Q3 = dframe[column].quantile(0.75)
+    return Q3
+
+
+def masking(dframe, column,):
+    Q3 = Quartile3(dframe, column)
+    Q1 = Quartile1(dframe, column)
+    IQR = Q3-Q1
+    maximum = Q3 + (1.5*IQR)
+    minimum = Q1 - (1.5*IQR)
+    # return [Q3,Q1,IQR,maximum,minimum]
+    kondisi_lower_than = dframe[column] < minimum
+    kondisi_more_than = dframe[column] > maximum
+    dframe.drop(dframe[kondisi_lower_than].index, inplace=True)
+    dframe.drop(dframe[kondisi_more_than].index, inplace=True)
+
+
+df["datetime"] = pd.to_datetime(pd.DataFrame(
+    {
+        "year": df["year"],
+        "month": df["month"],
+        "day": df["day"],
+        "hour": df["hour"]
+    }
+))
+
+df = df.drop(["No", "year", "month", "day", "hour"], axis=1)
+
+
 df = df[["datetime", "station", 'PM2.5', 'PM10', 'SO2', 'NO2', 'CO', "RAIN"]]
 df["datetime"] = pd.to_datetime(df["datetime"])
 pollutant = ['PM2.5', 'PM10', 'SO2', 'NO2', 'CO']
